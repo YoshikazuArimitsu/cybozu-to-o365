@@ -1,0 +1,41 @@
+{
+  "name": "cybozu-to-o365",
+  "version": "1.0.0",
+  "description": "sync Cybozu callendar to O365",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "debug": "node ./dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YoshikazuArimitsu/cybozu-to-o365.git"
+  },
+  "author": "Y.Arimitsu",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/YoshikazuArimitsu/cybozu-to-o365/issues"
+  },
+  "homepage": "https://github.com/YoshikazuArimitsu/cybozu-to-o365#readme",
+  "dependencies": {
+    "@microsoft/microsoft-graph-client": "^2.0.0",
+    "adal-node": "^0.2.1",
+    "csv-parse": "^2.5.0",
+    "isomorphic-fetch": "^2.2.1",
+    "meow": "^5.0.0",
+    "moment": "^2.22.2",
+    "puppeteer": "^1.7.0",
+    "rc": "^1.2.8"
+  },
+  "devDependencies": {
+    "typescript": "^3.6.3",
+    "ts-node": "^8.3.0",
+    "@microsoft/microsoft-graph-types": "^1.10.0",
+    "@types/node": "^12.7.5"
+  }
+}
