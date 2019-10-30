@@ -25,7 +25,7 @@
   "dependencies": {
     "@microsoft/microsoft-graph-client": "^2.0.0",
     "adal-node": "^0.2.1",
-    "csv-parse": "^2.5.0",
+    "csv-parse": "^4.4.6",
     "isomorphic-fetch": "^2.2.1",
     "meow": "^5.0.0",
     "moment": "^2.22.2",
