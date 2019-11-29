@@ -1,9 +1,81 @@
 import "isomorphic-fetch";
 
 var adal = require("adal-node");
-var MemoryCache = require("adal-node/lib/memory-cache");
 var HttpsProxyAgent = require("https-proxy-agent");
 import { Client } from "@microsoft/microsoft-graph-client/lib/src/Client";
+
+const meow = require("meow");
+const puppeteer = require("puppeteer");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const moment = require("moment");
+const parseCsv = require("csv-parse/lib/sync");
+const rc = require("rc");
+
+const _ = require('underscore');
+
+class FileCache {
+  _entries:Array<any> = [];
+
+  private save() {
+    fs.writeFileSync('.token', JSON.stringify(this._entries, null, '    '));    
+  }
+
+  private load() {
+    try {
+      this._entries = JSON.parse(fs.readFileSync('.token', 'utf8'));
+    } catch(e) {
+      
+    }
+  }
+
+  public remove(entries, callback) {
+    var updatedEntries = _.filter(this._entries, function(element) {
+      if (_.findWhere(entries, element)) {
+        return false;
+      }
+      return true;
+    });
+  
+    this._entries = updatedEntries;
+    this.save();
+    callback();
+  }
+
+  public add(entries, callback) {
+    // Remove any entries that are duplicates of the existing
+    // cache elements.
+    _.each(this._entries, function(element) {
+      _.each(entries, function(addElement, index) {
+        if (_.isEqual(element, addElement)) {
+          entries[index] = null;
+        }
+      });
+    });
+
+    // Add the new entries to the end of the cache.
+    entries = _.compact(entries);
+    for (var i = 0; i < entries.length; i++) {
+      this._entries.push(entries[i]);
+    }
+
+    this.save();
+    callback(null, true);
+  }
+
+  public find(query, callback) {
+    this.load();
+
+    var results = _.where(this._entries, query);
+    callback(null, results);
+  }
+
+  public first() {
+    this.load();
+    return this._entries.length > 0 ? this._entries[0] : null;
+  }
+}
 
 class AdalAutenticator {
   constructor(public param: any) {}
@@ -14,38 +86,56 @@ class AdalAutenticator {
 
       var authorityUrl = this.param.authorityHostUrl + "/" + this.param.tenant;
 
-      var cache = new MemoryCache();
+      var cache = new FileCache();
       var resource = "https://graph.microsoft.com";
 
       var context = new AuthenticationContext(authorityUrl, null, cache);
-      context.acquireUserCode(
-        resource,
-        this.param.clientId,
-        "es-mx",
-        (err, response) => {
-          if (err) {
-            console.log("well that didn't work: " + err.stack);
-          } else {
-            console.log(response.message);
-            context.acquireTokenWithDeviceCode(
-              resource,
-              this.param.clientId,
-              response,
-              function(err, tokenResponse) {
-                if (err) {
-                  console.log(
-                    "error happens when acquiring token with device code"
-                  );
-                  console.log(err);
-                } else {
-                  console.log("Autehticate success");
-                  resolve(tokenResponse.accessToken);
+
+      // DeviceCodeによるログインフロー
+      const login = () => {
+        context.acquireUserCode(
+          resource,
+          this.param.clientId,
+          "es-mx",
+          (err, response) => {
+            if (err) {
+              console.log("well that didn't work: " + err.stack);
+            } else {
+              console.log(response.message);
+              context.acquireTokenWithDeviceCode(
+                resource,
+                this.param.clientId,
+                response,
+                function(err, tokenResponse) {
+                  if (err) {
+                    console.log(
+                      "error happens when acquiring token with device code"
+                    );
+                    console.log(err);
+                  } else {
+                    console.log("Autehticate success");
+                    resolve(tokenResponse.accessToken);
+                  }
                 }
-              }
-            );
+              );
+            }
           }
-        }
-      );
+        );
+      }
+
+      if(cache.first()) {
+        context.acquireToken(resource, cache.first().userId, this.param.clientId, (err, tokenResponse) => {
+          if(err) {
+            login();
+          } else {
+            // トークンキャッシュ使用
+            console.log("Autehticate success by tokenCache");
+            resolve(tokenResponse.accessToken);
+          }
+        });
+      } else {
+        login();
+      }
     });
   }
 }
@@ -113,14 +203,8 @@ class O365Calendar {
   }
 }
 
-const meow = require("meow");
-const puppeteer = require("puppeteer");
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
-const moment = require("moment");
-const parseCsv = require("csv-parse/lib/sync");
-const rc = require("rc");
+
+
 
 const cli = meow(
   `
@@ -205,6 +289,12 @@ const csvPath = path.join(csvDir, "schedule.csv");
 
 // Main
 (async () => {
+  // Office365 login
+  const autehnicator = new AdalAutenticator(config.calendar);
+  const accessToken = await autehnicator.signIn();
+  const calendarClient = new O365Calendar(accessToken, config.proxy);
+
+
   const browser = await puppeteer.launch({ headless: !cli.flags.show });
   const page = await browser.newPage();
   await page._client.send("Page.setDownloadBehavior", {
@@ -274,9 +364,6 @@ const csvPath = path.join(csvDir, "schedule.csv");
 
   log("DONE\n");
 
-  const autehnicator = new AdalAutenticator(config.calendar);
-  const accessToken = await autehnicator.signIn();
-  const calendarClient = new O365Calendar(accessToken, config.proxy);
 
   log(">>>> Fetching events from Office365 Calendar...");
 
