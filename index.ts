@@ -126,7 +126,14 @@ class AdalAutenticator {
       if(cache.first()) {
         context.acquireToken(resource, cache.first().userId, this.param.clientId, (err, tokenResponse) => {
           if(err) {
-            login();
+            context.acquireTokenWithRefreshToken(cache.first().refreshToken, this.param.clientId, null, (err, tokenResponse2) => {
+              if(err) {
+                login();
+              } else {
+                console.log("Autehticate success by tokenCache refresh");
+                resolve(tokenResponse2.accessToken);
+              }
+            });
           } else {
             // トークンキャッシュ使用
             console.log("Autehticate success by tokenCache");
