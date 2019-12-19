@@ -149,8 +149,9 @@ class AdalAutenticator {
 
 class O365Calendar {
   graphClient: Client;
+  calendarId?: string;
 
-  constructor(accessToken: string, proxy?: string) {
+  constructor(accessToken: string, proxy?: string, calendarId?: string) {
     const o = {
       authProvider: done => {
         done(null, accessToken);
@@ -159,7 +160,17 @@ class O365Calendar {
     if (proxy) {
       o["fetchOptions"] = { agent: new HttpsProxyAgent(proxy) };
     }
+
+    this.calendarId = calendarId;
     this.graphClient = Client.init(o);
+  }
+
+  private get eventsPath() : string {
+    if(this.calendarId) {
+      return `/me/calendars/${this.calendarId}/events`;
+    } else {
+      return '/me/events';
+    }
   }
 
   async createCalendarEvent(e: any) {
@@ -183,19 +194,27 @@ class O365Calendar {
     };
 
     try {
-      await this.graphClient.api("/me/events").post(event);
+      await this.graphClient.api(this.eventsPath).post(event);
     } catch (err) {
       console.log(err);
     }
   }
 
   async deleteCalendarEvent(id: string) {
-    await this.graphClient.api(`/me/events/${id}`).delete();
+    await this.graphClient.api(`${this.eventsPath}/${id}`).delete();
+  }
+
+  private get calEventsPath() : string {
+    if(this.calendarId) {
+      return `/me/calendars/${this.calendarId}/events`;
+    } else {
+      return '/me/calendar/events';
+    }
   }
 
   async getCalendarEvents() {
     const response = await this.graphClient
-      .api("/me/calendar/events")
+      .api(this.calEventsPath)
       .top(10000)
       .get();
     return response.value.map((v: any) => {
@@ -299,7 +318,8 @@ const csvPath = path.join(csvDir, "schedule.csv");
   // Office365 login
   const autehnicator = new AdalAutenticator(config.calendar);
   const accessToken = await autehnicator.signIn();
-  const calendarClient = new O365Calendar(accessToken, config.proxy);
+  const calendarClient = new O365Calendar(accessToken, config.proxy,
+    config.calendar.calendarId);
 
 
   const browser = await puppeteer.launch({ headless: !cli.flags.show });
