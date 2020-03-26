@@ -16,28 +16,28 @@ const rc = require("rc");
 const _ = require('underscore');
 
 class FileCache {
-  _entries:Array<any> = [];
+  _entries: Array<any> = [];
 
   private save() {
-    fs.writeFileSync('.token', JSON.stringify(this._entries, null, '    '));    
+    fs.writeFileSync('.token', JSON.stringify(this._entries, null, '    '));
   }
 
   private load() {
     try {
       this._entries = JSON.parse(fs.readFileSync('.token', 'utf8'));
-    } catch(e) {
-      
+    } catch (e) {
+
     }
   }
 
   public remove(entries, callback) {
-    var updatedEntries = _.filter(this._entries, function(element) {
+    var updatedEntries = _.filter(this._entries, function (element) {
       if (_.findWhere(entries, element)) {
         return false;
       }
       return true;
     });
-  
+
     this._entries = updatedEntries;
     this.save();
     callback();
@@ -46,8 +46,8 @@ class FileCache {
   public add(entries, callback) {
     // Remove any entries that are duplicates of the existing
     // cache elements.
-    _.each(this._entries, function(element) {
-      _.each(entries, function(addElement, index) {
+    _.each(this._entries, function (element) {
+      _.each(entries, function (addElement, index) {
         if (_.isEqual(element, addElement)) {
           entries[index] = null;
         }
@@ -78,7 +78,7 @@ class FileCache {
 }
 
 class AdalAutenticator {
-  constructor(public param: any) {}
+  constructor(public param: any) { }
 
   public async signIn(): Promise<string> {
     return new Promise(resolve => {
@@ -106,7 +106,7 @@ class AdalAutenticator {
                 resource,
                 this.param.clientId,
                 response,
-                function(err, tokenResponse) {
+                function (err, tokenResponse) {
                   if (err) {
                     console.log(
                       "error happens when acquiring token with device code"
@@ -123,17 +123,10 @@ class AdalAutenticator {
         );
       }
 
-      if(cache.first()) {
-        context.acquireToken(resource, cache.first().userId, this.param.clientId, (err, tokenResponse) => {
-          if(err) {
-            context.acquireTokenWithRefreshToken(cache.first().refreshToken, this.param.clientId, null, (err, tokenResponse2) => {
-              if(err) {
-                login();
-              } else {
-                console.log("Autehticate success by tokenCache refresh");
-                resolve(tokenResponse2.accessToken);
-              }
-            });
+      if (cache.first()) {
+        context.acquireTokenWithRefreshToken(cache.first().refreshToken, this.param.clientId, null, (err, tokenResponse) => {
+          if (err) {
+            login();
           } else {
             // トークンキャッシュ使用
             console.log("Autehticate success by tokenCache");
@@ -165,8 +158,8 @@ class O365Calendar {
     this.graphClient = Client.init(o);
   }
 
-  private get eventsPath() : string {
-    if(this.calendarId) {
+  private get eventsPath(): string {
+    if (this.calendarId) {
       return `/me/calendars/${this.calendarId}/events`;
     } else {
       return '/me/events';
@@ -204,8 +197,8 @@ class O365Calendar {
     await this.graphClient.api(`${this.eventsPath}/${id}`).delete();
   }
 
-  private get calEventsPath() : string {
-    if(this.calendarId) {
+  private get calEventsPath(): string {
+    if (this.calendarId) {
       return `/me/calendars/${this.calendarId}/events`;
     } else {
       return '/me/calendar/events';
@@ -292,7 +285,7 @@ if (cli.flags.version) {
   cli.showVersion();
 }
 
-const log = cli.flags.quiet ? () => {} : str => process.stdout.write(str);
+const log = cli.flags.quiet ? () => { } : str => process.stdout.write(str);
 
 let config = rc("c2o");
 if (cli.flags.config) {
